@@ -1,0 +1,20 @@
+CREATE SCHEMA IF NOT EXISTS rawdata AUTHORIZATION postgres;
+CREATE SCHEMA IF NOT EXISTS research AUTHORIZATION postgres;
+
+CREATE ROLE gdax_md LOGIN PASSWORD 'gdax_md';
+GRANT CONNECT ON DATABASE mddb TO gdax_md;
+-- GRANT SELECT ON ALL TABLES IN SCHEMA rawdata TO gdax_md;
+-- GRANT INSERT ON ALL TABLES IN SCHEMA rawdata TO gdax_md;
+-- GRANT CREATE ON SCHEMA rawdata to gdax_md;
+
+CREATE ROLE readonlyuser LOGIN PASSWORD 'readonlyuser';
+GRANT CONNECT ON DATABASE mddb TO readonlyuser;
+-- GRANT SELECT ON ALL TABLES IN SCHEMA rawdata TO readonlyuser;
+-- GRANT SELECT ON ALL TABLES IN SCHEMA research TO readonlyuser;
+
+CREATE ROLE bars_cron LOGIN PASSWORD 'bars_cron';
+GRANT CONNECT ON DATABASE mddb to bars_cron;
+
+GRANT USAGE ON SCHEMA rawdata TO public;
+GRANT USAGE ON SCHEMA research TO public;
+
