@@ -1,14 +1,19 @@
+/**
+ * ticks.sql
+ *
+ * ticks keep track of every trade and every change of the
+ * inside market.
+ */
 DROP TABLE IF EXISTS rawdata.ticks;
 CREATE TABLE rawdata.ticks (
-  trade_id BIGINT,
-  sequence BIGINT NOT NULL,
-  maker_order_id CHAR(36),
-  taker_order_id CHAR(36),
   time TIMESTAMPTZ NOT NULL,
+  tick_type CHAR(10) NOT NULL,
+  bid_price FLOAT,
+  bid_size FLOAT,
+  ask_price FLOAT,
+  ask_size FLOAT,
+  trade_price FLOAT,
   product_id CHAR(10) NOT NULL,
-  trade_size FLOAT NOT NULL,
-  price FLOAT NOT NULL,
-  side CHAR(4),
   exchange CHAR(20) NOT NULL,
   PRIMARY KEY(time, product_id, exchange)
 );
