@@ -3,6 +3,7 @@
 A program to help manage the database.
 """
 import psycopg2
+import pandas as pd
 
 ADMIN_CONFIG = {
   'user': 'postgres',
@@ -24,8 +25,10 @@ def query(statement, con=None, params=None):
     table = pd.io.sql.read_sql(statement, con, params=params)
     return table
 
-def run_sql_file(sql_fname):
+def run_sql_file(sql_fname, con=None):
+    if con is None:
+        con = get_connection()
     with open(sql_fname, 'r') as f:
         sql = f.read()
-    table = query(sql)
-    return table
+    cur = con.cursor()
+    cur.execute(sql)

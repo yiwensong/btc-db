@@ -73,8 +73,15 @@ function trades_error(error) {
 };
 
 
-var trades_websocket = new gdax.WebsocketClient(['BTC-USD', 'ETH-USD', 'ETH-BTC']);
-trades_websocket.on('open', init_trades);
-trades_websocket.on('message', parse_trade);
-trades_websocket.on('close', close_trades);
-trades_websocket.on('error', trades_error);
+gdax_clients.publicClient.getProducts(function (err, resp, data) {
+  if (err) console.error(err);
+  var products = data.map(function (d) {
+    return d.id;
+  });
+
+  var trades_websocket = new gdax.WebsocketClient(products);
+  trades_websocket.on('open', init_trades);
+  trades_websocket.on('message', parse_trade);
+  trades_websocket.on('close', close_trades);
+  trades_websocket.on('error', trades_error);
+});
