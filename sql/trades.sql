@@ -11,7 +11,7 @@ CREATE TABLE rawdata.trades (
   price FLOAT NOT NULL,
   side CHAR(4),
   exchange CHAR(20) NOT NULL,
-  PRIMARY KEY(sequence)
+  PRIMARY KEY(sequence, exchange, product_id)
 );
 GRANT SELECT ON rawdata.trades TO public;
 GRANT INSERT ON rawdata.trades TO gdax_md;
