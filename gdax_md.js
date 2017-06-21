@@ -54,7 +54,7 @@ function parse_trade(data) {
 
 
 /**
- * Dummy placeholder function.
+ * On close, reinitializes a websocket connection.
  *
  * @param  data   callback argument
  */
@@ -72,16 +72,29 @@ function trades_error(error) {
   console.error(error);
 };
 
+/**
+ * Starts the trades table websocket connection.
+ *
+ * @param  products   a list of products for which you want data.
+ */
+function start_trades_ws(products) {
+  var trades_websocket = new gdax.WebsocketClient(products);
+  trades_websocket.on('open', init_trades);
+  trades_websocket.on('message', parse_trade);
+  trades_websocket.on('close', function (data) {
+    console.log('websocket closed, reinitializing...', data);
+    start_trades_ws(products);
+  });
+  trades_websocket.on('error', trades_error);
+};
 
+
+// Gets the product list and then starts a websocket client.
 gdax_clients.publicClient.getProducts(function (err, resp, data) {
   if (err) console.error(err);
   var products = data.map(function (d) {
     return d.id;
   });
 
-  var trades_websocket = new gdax.WebsocketClient(products);
-  trades_websocket.on('open', init_trades);
-  trades_websocket.on('message', parse_trade);
-  trades_websocket.on('close', close_trades);
-  trades_websocket.on('error', trades_error);
+  start_trades_ws(products);
 });
