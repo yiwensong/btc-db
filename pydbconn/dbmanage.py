@@ -32,3 +32,4 @@ def run_sql_file(sql_fname, con=None):
         sql = f.read()
     cur = con.cursor()
     cur.execute(sql)
+    con.commit()

@@ -10,7 +10,7 @@ CREATE TABLE rawdata.quotes (
   ask_orders INT,
   product_id CHAR(10) NOT NULL,
   exchange CHAR(20) NOT NULL,
-  PRIMARY KEY(time, product_id, exchange)
+  PRIMARY KEY(sequence, time, product_id, exchange)
 );
 GRANT SELECT ON rawdata.quotes TO public;
 GRANT INSERT ON rawdata.quotes TO gdax_md;

@@ -4,7 +4,7 @@
  * Gets marketdata from the gdax server and performs INSERT into the database.
  */
 
-const db = require('./db_connect');
+const db = require('../db_connect');
 // db.query('INSERT INTO rawdata.test(name, animal, age, sex) VALUES ($1::text, $2::text, $3::int, $4::text);',
 //     ['yiwen','human',22,'M'],
 //     function (err, result) {
