@@ -39,48 +39,52 @@ var message_queue = new ds.queue();
  * @param   resp  the response json raw
  * @param   book  the book data
  */
-function orderbook_callback(err, resp, book) {
-  var insert_values = [
-    book.sequence,
-    moment().format(''),
-    // data.time,
-    book.bids[0][0],
-    book.bids[0][1],
-    book.bids[0][2],
-    book.asks[0][0],
-    book.asks[0][1],
-    book.asks[0][2],
-    'BTC-USD',
-    // data.product_id,
-    'GDAX',
-  ];
-  db.query('INSERT INTO rawdata.quotes ('
-              + 'sequence, '
-              + 'time, '
-              + 'bid_price, '
-              + 'bid_size, '
-              + 'bid_orders, '
-              + 'ask_price, '
-              + 'ask_size, '
-              + 'ask_orders, '
-              + 'product_id, '
-              + 'exchange) '
-          + 'VALUES ('
-              + '$1::bigint, '
-              + '$2::timestamp, '
-              + '$3::float, '
-              + '$4::float, '
-              + '$5::int, '
-              + '$6::float, '
-              + '$7::float, '
-              + '$8::int, '
-              + '$9::text, '
-              + '$10::text);',
-      insert_values,
-      function(err, result) {
-        if (err) console.error('error',err);
-      }
-  );
+function get_orderbook_callback (product) {
+  var cb = function (err, resp, book) {
+    console.log(product);
+    var insert_values = [
+      book.sequence,
+      moment().format(''),
+      // data.time,
+      book.bids[0][0],
+      book.bids[0][1],
+      book.bids[0][2],
+      book.asks[0][0],
+      book.asks[0][1],
+      book.asks[0][2],
+      product,
+      // data.product_id,
+      'GDAX',
+    ];
+    db.query('INSERT INTO rawdata.quotes ('
+                + 'sequence, '
+                + 'time, '
+                + 'bid_price, '
+                + 'bid_size, '
+                + 'bid_orders, '
+                + 'ask_price, '
+                + 'ask_size, '
+                + 'ask_orders, '
+                + 'product_id, '
+                + 'exchange) '
+            + 'VALUES ('
+                + '$1::bigint, '
+                + '$2::timestamp, '
+                + '$3::float, '
+                + '$4::float, '
+                + '$5::int, '
+                + '$6::float, '
+                + '$7::float, '
+                + '$8::int, '
+                + '$9::text, '
+                + '$10::text);',
+        insert_values,
+        function(err, result) {
+          if (err) console.error('error',err);
+        }
+    );
+  };
+  return cb;
 };
 
 
@@ -88,16 +92,34 @@ function orderbook_callback(err, resp, book) {
  * Queries the orderbook every quarter second and records
  * the inside market to the database.
  *
- * @param   client  the gdax client in which we call 
- *                  getProductOrderbook.
+ * @param   product   the product to get quotes on.
  */
-function get_quotes(client) {
+function get_quotes(product, client) {
+  if (client == undefined) {
+    client = new gdax.PublicClient(product);
+  }
+  var orderbook_callback = get_orderbook_callback(product);
   client.getProductOrderBook({'level': 1}, orderbook_callback);
   setTimeout(function () {
-    get_quotes(client);
+    get_quotes(product, client);
   }, TIMEOUT);
 };
 
 
-var c = gdax_clients.publicClient;
-get_quotes(c);
+/**
+ * Calls the gdax client and creates a client for each product.
+ * Afterwards, starts querying each client to poll the L1 orderbook.
+ */
+function get_all_product_quotes() {
+  gdax_clients.publicClient.getProducts(function (err, resp, data) {
+    if (err) console.error(err);
+    for (var i in data) {
+      console.log(data[i].id);
+      var product = data[i].id;
+      get_quotes(product);
+    }
+  });
+};
+
+
+get_all_product_quotes();
