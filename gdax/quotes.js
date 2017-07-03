@@ -51,8 +51,7 @@ function parse_message(data) {
   if (data.type == 'open') {
 
   }
-  if (data.type == 'open' || data.type == 'match' || data.type == 'done'
-      || data.type == 'change') {
+  if (data.type == 'match') {
     gdax_clients.publicClient.getProductOrderBook({'level': 1}, function (err, resp, book) {
       try {
       var insert_values = [

@@ -1,5 +1,5 @@
 /**
- * gdax/quotes.js
+ * gdax/book.js
  *
  * Grabs the orderbook from GDAX on every relevant message and records them here.
  */
@@ -11,56 +11,74 @@ const ds = require('datastructures');
 const asynclock = require('async-lock');
 
 const ASYNCKEY = 'ASYNCKEY';
+const BOOKLEVELS = 500;
+const BOUNDLEVEL = 20;
 
 /**
  * ORDERBOOKS
  *
  * sequence: the sequence number of the last update applied.
- * bids: a hashtable of bids where the keys are order ids.
- * asks: a hashtable of asks where the keys are order ids.
+ * inc: the quote_increment of the product
+ * centerbook: the center of the book, used to convert index to price.
+ * data: the array in which the orderbook is stored.
+ * lbound, ubound: once the book gets past here, we should recreate it.
  */
 
-function Orderbook(raw_book) {
-  this.sequence = raw_book.sequence;
-  this.bids = new ds.heap();
-  this.asks = new ds.heap();
-  this.dict = new Object();
-
+function Orderbook(raw_book, quote_increment) {
+  this.sequence = parseInt(raw_book.sequence);
+  this.inc = quote_increment;
+  this.centerbook = raw_book.bids[0][0];
+  this.data = new Array(BOOKLEVELS);
+  for (var i=0;i<BOOKLEVELS;i++) {
+    this.data[i] = {
+      price: this.get_index_price(i),
+      size: 0.0,
+      orders: 0.0,
+      side: (price > this.centerbook) ? 'asks' : 'bids',
+    };
+  }
   for (var i in raw_book.bids) {
-    var order = raw_book.bids[i];
-    this.insert_order(order[2], order[0], order[1], 'bid');
+    var price = raw_book.bids[i][0];
+    var index = this.get_price_index(price);
+    this.data[index].size = raw_book.bids[i][1];
+    this.data[index].orders = raw_book.bids[i][2];
   }
   for (var i in raw_book.asks) {
-    var order = raw_book.bids[i];
-    this.insert_order(order[2], order[0], order[1], 'ask');
+    var price = raw_book.asks[i][0];
+    var index = this.get_price_index(price);
+    this.data[index].size = raw_book.asks[i][1];
+    this.data[index].orders = raw_book.asks[i][2];
   }
+  this.lbound = raw_book.bids[BOUNDLEVEL][0];
+  this.ubound = raw_book.asks[BOUNDLEVEL][0];
 };
 
 
 /**
- * Inserts an order into the book, but more taken apart.
+ * Returns the index of a price level based on the center of the
+ * book (centerbook) and the quote increments.
  *
- * @param   id      the order id
- * @param   price   the price of the order
- * @param   size    the size of the order
- * @param   side    'bid' or 'ask'
+ * @param   price   the price level for which we want an index.
  */
-Orderbook.prototype.insert_order = function(id, price, size, side) {
-  var entry = {
-    id: id,
-    price: price,
-    size: size,
-    side: side,
-  };
-  this.dict[id] = entry;
-  if (side == 'bid') {
-    this.bids.enqueue(entry, -price);
-  } else if (side == 'ask') {
-    this.asks.enqueue(entry, price);
-  } else {
-    throw 'unexpected order side: ' + side;
-  }
+Orderbook.prototype.get_price_index = function(price) {
+  var price_diff = price - this.centerbook;
+  var levels = price_diff/this.inc;
+  var index = Math.round(levels + BOOKLEVELS/2);
+  return index;
 };
+
+
+/**
+ * Returns the price level of an index in the book.
+ *
+ * @param   index   the index of the book array for which we want a price.
+ */
+Orderbook.prototype.get_index_price = function(index) {
+  var price_diff = (index - BOOKLEVELS/2) * this.inc;
+  var price = this.centerbook + price_diff;
+  return price
+};
+
 
 /**
  * Inserts an order into the orderbook.
@@ -68,28 +86,15 @@ Orderbook.prototype.insert_order = function(id, price, size, side) {
  * @param   order   the message in which the order came.
  */
 Orderbook.prototype.add_order = function(order) {
-  var price = parseFloat(order.price);
-  var size = parseFloat(order.remaining_size);
-  var id = order.order_id;
-  var side = order.side == 'sell' ? 'ask' : 'bid';
-  this.insert_order(id, price, size, side);
 };
 
 
 /**
  * Removes an order-id and its associated order from the book.
  *
- * @param   id      the order id of the order to remove.
+ * @param   order   the message for removing the order.
  */
-Orderbook.prototype.remove_order = function(id) {
-  this.dict[id].size = 0.0;
-  delete this.dict[id];
-  var side = this[this.dict[id].side + 's'];
-  var tmp = side.peek();
-  while (tmp.size == 0.0) {
-    side.dequeue();
-    tmp = side.peek();
-  }
+Orderbook.prototype.remove_order = function(order) {
 };
 
 
@@ -99,8 +104,6 @@ Orderbook.prototype.remove_order = function(id) {
  * @param   order   the message in which the order came.
  */
 Orderbook.prototype.change_order = function(order) {
-  var entry = this.dict[order.order_id];
-  entry.size = order.new_size;
 };
 
 
@@ -110,21 +113,6 @@ Orderbook.prototype.change_order = function(order) {
  * @param   message   the match message being played.
  */
 Orderbook.prototype.handle_match = function(message) {
-  // What happens if I just return
-  // I think we don't handle these because we will get a remove
-  // or change every time we get one of these.
-  //
-  // var id = message.maker_order_id;
-  // if (!(id in this.dict)) return;
-  // var match_size = parseFloat(message.size);
-  // var entry = this.dict[id];
-  // if (entry.size == match_size) {
-  //   this.remove_order(id);
-  // } else if (entry.size > match_size) {
-  //   entry.size -= match_size;
-  // } else {
-  //   throw 'Match size larger than order size.';
-  // }
 };
 
 /**
@@ -139,7 +127,7 @@ Orderbook.prototype.play_message = function(message) {
     this.add_order(message);
   } else if (message.type == 'done') {
     if (!(message.order_id in this.dict)) return;
-    this.remove_order(message.order_id);
+    this.remove_order(message);
   } else if (message.type == 'match') {
     this.handle_match(message);
   } else if (message.type == 'change') {
