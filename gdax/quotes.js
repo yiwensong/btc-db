@@ -41,7 +41,8 @@ var message_queue = new ds.queue();
  */
 function get_orderbook_callback (product) {
   var cb = function (err, resp, book) {
-    console.log(product);
+    // console.log(product);
+    if (err) console.error(err);
     var insert_values = [
       book.sequence,
       moment().format(''),
